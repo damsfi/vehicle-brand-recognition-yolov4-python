@@ -17,6 +17,9 @@ timeout = 120
 keepalive = 5
 
 # Logging
+# Create logs directory if it doesn't exist
+import os
+os.makedirs("logs", exist_ok=True)
 accesslog = "logs/access.log"
 errorlog = "logs/error.log"
 loglevel = "info"

@@ -116,8 +116,15 @@ def load_model():
         return False
 
 # Load model at startup
-if not load_model():
-    app.logger.error('CRITICAL: Could not load YOLO model. Server may not work correctly.')
+# Don't fail completely if model doesn't load - allow health checks to work
+try:
+    if not load_model():
+        app.logger.error('CRITICAL: Could not load YOLO model. Server may not work correctly.')
+        app.logger.error('Server will start but detection endpoints will fail.')
+except Exception as e:
+    app.logger.error(f'CRITICAL: Exception during model loading: {str(e)}')
+    app.logger.error(traceback.format_exc())
+    app.logger.error('Server will start but detection endpoints will fail.')
 
 # Class IDs we want to count: car=2, truck=7, cell phone=67
 TARGET_CLASSES = {2: 'car', 7: 'truck', 67: 'cell phone'}
