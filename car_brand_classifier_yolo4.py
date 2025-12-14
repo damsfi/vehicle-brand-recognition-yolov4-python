@@ -1,6 +1,7 @@
 # Copyright © 2020 by Spectrico
 # Licensed under the MIT License
 # Based on the tutorial by Adrian Rosebrock: https://www.pyimagesearch.com/2018/11/12/yolo-object-detection-with-opencv/
+# Modified to detect all objects
 # Usage: $ python car_brand_classifier_yolo4.py --image cars.jpg
 
 # import the necessary packages
@@ -9,7 +10,6 @@ import argparse
 import time
 import cv2
 import os
-import classifier
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -22,8 +22,6 @@ ap.add_argument("-c", "--confidence", type=float, default=0.5,
 ap.add_argument("-t", "--threshold", type=float, default=0.3,
 	help="threshold when applying non-maxima suppression")
 args = vars(ap.parse_args())
-
-car_classifier = classifier.Classifier()
 
 # load the COCO class labels our YOLO model was trained on
 labelsPath = os.path.sep.join([args["yolo"], "coco.names"])
@@ -48,7 +46,12 @@ image = cv2.imread(args["image"])
 
 # determine only the *output* layer names that we need from YOLO
 layer_names = net.getLayerNames()
-output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+unconnected_out_layers = net.getUnconnectedOutLayers()
+# Handle different OpenCV versions - newer versions return numpy array directly
+if hasattr(unconnected_out_layers, 'shape') and len(unconnected_out_layers.shape) == 1:
+	output_layers = [layer_names[int(i) - 1] for i in unconnected_out_layers]
+else:
+	output_layers = [layer_names[int(i[0]) - 1] for i in unconnected_out_layers]
 
 # construct a blob from the input image and then perform a forward
 # pass of the YOLO object detector, giving us our bounding boxes and
@@ -68,6 +71,7 @@ print("[INFO] YOLO took {:.6f} seconds".format(end - start))
 boxes = []
 confidences = []
 classIDs = []
+all_detections = {}  # Track all detections for debugging
 
 # loop over each of the layer outputs
 for output in outputs:
@@ -82,6 +86,13 @@ for output in outputs:
 		# filter out weak predictions by ensuring the detected
 		# probability is greater than the minimum probability
 		if confidence > args["confidence"]:
+			# Track all detections for debugging
+			label = LABELS[classID]
+			if label not in all_detections:
+				all_detections[label] = 0
+			all_detections[label] += 1
+			
+			# Detect all objects (not just cars)
 			# scale the bounding box coordinates back relative to the
 			# size of the image, keeping in mind that YOLO actually
 			# returns the center (x, y)-coordinates of the bounding
@@ -100,39 +111,65 @@ for output in outputs:
 			confidences.append(float(confidence))
 			classIDs.append(classID)
 
+# Print all detected objects for debugging
+if all_detections:
+	print("[INFO] All detected objects:", all_detections)
+else:
+	print("[INFO] No objects detected above confidence threshold")
+
 # apply non-maxima suppression to suppress weak, overlapping bounding
 # boxes
-idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
-	args["threshold"])
+print("[INFO] Found {} object detections before NMS".format(len(boxes)))
+
+if len(boxes) > 0:
+	idxs = cv2.dnn.NMSBoxes(boxes, confidences, args["confidence"],
+		args["threshold"])
+	
+	# Handle case where idxs might be None, tuple, or numpy array
+	if idxs is None:
+		idxs = []
+	elif isinstance(idxs, tuple):
+		idxs = list(idxs)
+	elif hasattr(idxs, 'flatten'):
+		idxs = idxs.flatten()
+	else:
+		idxs = list(idxs) if idxs else []
+	
+	print("[INFO] Found {} object detections after NMS".format(len(idxs)))
+else:
+	idxs = []
+	print("[INFO] No objects detected in the image")
 
 # ensure at least one detection exists
 if len(idxs) > 0:
 	# loop over the indexes we are keeping
-	for i in idxs.flatten():
+	# Handle idxs flattening for different types
+	if hasattr(idxs, 'flatten'):
+		idxs_flat = idxs.flatten()
+	else:
+		idxs_flat = idxs
+	for i in idxs_flat:
 		# extract the bounding box coordinates
 		(x, y) = (boxes[i][0], boxes[i][1])
 		(w, h) = (boxes[i][2], boxes[i][3])
 
 		# draw a bounding box rectangle and label on the image
 		color = [int(c) for c in COLORS[classIDs[i]]]
-		if classIDs[i] == 2:
-			start = time.time()
-			result = car_classifier.predict(image[max(y,0):y + h, max(x,0):x + w])
-			end = time.time()
-			# show timing information on MobileNetV3 classifier
-			print("[INFO] classifier took {:.6f} seconds".format(end - start))
-			text = "{}: {:.4f}".format(result[0]['brand'], float(result[0]['prob']))
-			cv2.putText(image, text, (x + 2, y + 20), cv2.FONT_HERSHEY_SIMPLEX,
-						0.6, color, 2)
 		cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 		text = "{}: {:.4f}".format(LABELS[classIDs[i]], confidences[i])
 		cv2.putText(image, text, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX,
 			0.5, color, 2)
 
-# show the output image
-cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('Image', W, H)
-cv2.imshow("Image", image)
+# save the output image
 cv2.imwrite("output.jpg", image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+print("[INFO] Output image saved as output.jpg")
+
+# Try to show the output image if GUI is available
+try:
+	cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
+	cv2.resizeWindow('Image', W, H)
+	cv2.imshow("Image", image)
+	cv2.waitKey(0)
+	cv2.destroyAllWindows()
+except cv2.error:
+	print("[INFO] GUI not available. Image saved to output.jpg")
