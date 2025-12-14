@@ -45,7 +45,7 @@ output_layers = None
 LABELS = None
 
 def download_weights_if_missing():
-    """Download YOLO weights if missing (for Heroku deployment)"""
+    """Download YOLO weights if missing (for Heroku/Railway deployment)"""
     import urllib.request
     
     if not os.path.exists(weightsPath):
@@ -54,11 +54,19 @@ def download_weights_if_missing():
             os.makedirs(yolo_path, exist_ok=True)
             url = "https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights"
             app.logger.info(f'Downloading from {url}...')
-            urllib.request.urlretrieve(url, weightsPath)
+            # Use urllib with progress indication
+            def show_progress(block_num, block_size, total_size):
+                downloaded = block_num * block_size
+                percent = min(downloaded * 100 / total_size, 100)
+                if block_num % 100 == 0:  # Log every 100 blocks
+                    app.logger.info(f'Download progress: {percent:.1f}%')
+            
+            urllib.request.urlretrieve(url, weightsPath, show_progress)
             app.logger.info('Weights downloaded successfully!')
             return True
         except Exception as e:
             app.logger.error(f'Failed to download weights: {str(e)}')
+            app.logger.error(traceback.format_exc())
             return False
     return True
 

@@ -4,7 +4,9 @@ import multiprocessing
 import os
 
 # Server socket
-bind = "0.0.0.0:5000"
+# Use PORT environment variable (Railway/Heroku) or default to 5000
+port = int(os.environ.get("PORT", 5000))
+bind = f"0.0.0.0:{port}"
 backlog = 2048
 
 # Worker processes

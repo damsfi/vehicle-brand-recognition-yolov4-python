@@ -21,7 +21,10 @@ RUN bash bin/download_weights || true
 # Copy application code
 COPY . .
 
-# Expose port
+# Create logs directory
+RUN mkdir -p logs
+
+# Expose port (Railway will set PORT env var)
 EXPOSE 5000
 
 # Start command
