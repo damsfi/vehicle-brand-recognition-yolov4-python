@@ -1,0 +1,19 @@
+{
+  "name": "Object Detection API",
+  "description": "Flask API for detecting cars, trucks, and cell phones using YOLOv4",
+  "repository": "https://github.com/TheDeveloperMask/vehicle-brand-recognition-yolov4-python",
+  "keywords": ["python", "flask", "yolo", "object-detection", "opencv"],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": []
+}
+

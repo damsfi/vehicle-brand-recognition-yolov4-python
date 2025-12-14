@@ -44,12 +44,40 @@ net = None
 output_layers = None
 LABELS = None
 
+def download_weights_if_missing():
+    """Download YOLO weights if missing (for Heroku deployment)"""
+    import urllib.request
+    
+    if not os.path.exists(weightsPath):
+        app.logger.info('YOLO weights not found, downloading...')
+        try:
+            os.makedirs(yolo_path, exist_ok=True)
+            url = "https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights"
+            app.logger.info(f'Downloading from {url}...')
+            urllib.request.urlretrieve(url, weightsPath)
+            app.logger.info('Weights downloaded successfully!')
+            return True
+        except Exception as e:
+            app.logger.error(f'Failed to download weights: {str(e)}')
+            return False
+    return True
+
 def load_model():
     """Load YOLO model - called at startup"""
     global net, output_layers, LABELS
     
     try:
         app.logger.info('Loading YOLO model...')
+        
+        # Check and download weights if missing
+        if not download_weights_if_missing():
+            app.logger.error('Could not obtain YOLO weights')
+            return False
+        
+        # Verify weights file exists
+        if not os.path.exists(weightsPath):
+            app.logger.error(f'Weights file not found at {weightsPath}')
+            return False
         
         # Load labels
         LABELS = open(labelsPath).read().strip().split("\n")

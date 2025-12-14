@@ -1,0 +1,25 @@
+#!/bin/bash
+# Download YOLOv4 weights if not present
+# This script runs during Heroku build
+
+echo "Checking for YOLOv4 weights..."
+
+if [ ! -f "yolov4/yolov4.weights" ]; then
+    echo "Downloading YOLOv4 weights (this may take a few minutes)..."
+    mkdir -p yolov4
+    cd yolov4
+    
+    # Download weights
+    wget -q --show-progress https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights
+    
+    if [ -f "yolov4.weights" ]; then
+        echo "✓ YOLOv4 weights downloaded successfully"
+        ls -lh yolov4.weights
+    else
+        echo "✗ Failed to download weights"
+        exit 1
+    fi
+else
+    echo "✓ YOLOv4 weights already present"
+fi
+
