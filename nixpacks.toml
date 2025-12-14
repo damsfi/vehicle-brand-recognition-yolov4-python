@@ -1,9 +1,9 @@
 [phases.setup]
-nixPkgs = ["python3", "wget"]
+nixPkgs = ["python3", "python3Packages.pip", "wget"]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt",
+  "python3 -m pip install -r requirements.txt",
   "bash bin/download_weights"
 ]
 
