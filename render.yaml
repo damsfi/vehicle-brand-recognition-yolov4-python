@@ -2,9 +2,9 @@ services:
   - type: web
     name: object-detection-api
     env: python
-    buildCommand: pip install -r requirements_api.txt
+    buildCommand: pip install -r requirements.txt && bash bin/download_weights
     startCommand: gunicorn --config gunicorn_config.py api_server_production:app
     envVars:
       - key: PORT
         value: 5000
-
+    healthCheckPath: /health
